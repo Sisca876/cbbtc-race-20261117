@@ -126,6 +126,11 @@ class DipRider:
         return self._maybe_enter(state, z)
 
     def _maybe_exit(self, state, close, z, held):
+        # Mean-reversion exit first: the price has swung above its 6-hour
+        # mean. It needs no entry price, so it still fires even if the entry
+        # fill was somehow missed and the cost fallback below comes up empty.
+        if z >= EXIT_Z:
+            return self._sell_all(held)
         # The position the harness reports is the truth: if a fill we missed
         # opened it, anchor the entry at the position's cost instead.
         if self.entry_price is None:
@@ -136,9 +141,6 @@ class DipRider:
         entry = self.entry_price
         if entry is None or entry <= 0:
             return []
-        # Mean-reversion exit: the price has swung above its 6-hour mean.
-        if z >= EXIT_Z:
-            return self._sell_all(held)
         # Trailing stop: 150 bps under the peak close since entry.
         if (close - self.peak) * 10000 <= -TRAIL_BPS * self.peak:
             return self._sell_all(held)
